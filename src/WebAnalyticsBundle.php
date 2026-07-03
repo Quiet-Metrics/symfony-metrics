@@ -15,6 +15,9 @@ use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 final class WebAnalyticsBundle extends AbstractBundle
 {
+    // Clé de configuration « webanalytics » (l'alias auto serait web_analytics).
+    protected string $extensionAlias = 'webanalytics';
+
     public function configure(DefinitionConfigurator $definition): void
     {
         // config/packages/webanalytics.yaml
