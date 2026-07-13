@@ -25,7 +25,8 @@ final class WebAnalyticsBundle extends AbstractBundle
             ->children()
                 ->scalarNode('public_key')->isRequired()->cannotBeEmpty()->end()
                 ->scalarNode('secret_key')->defaultNull()->end()
-                ->scalarNode('endpoint')->defaultValue('https://collect.example.fr/api/v1/collect')->end()
+                // null : on laisse l'endpoint par défaut du SDK cœur (SaaS Affluence).
+                ->scalarNode('endpoint')->defaultNull()->end()
                 ->booleanNode('trust_proxy_headers')->defaultFalse()->end()
                 // false → désactive la pageview auto (events manuels uniquement).
                 ->booleanNode('auto_pageview')->defaultTrue()->end()
@@ -33,20 +34,22 @@ final class WebAnalyticsBundle extends AbstractBundle
     }
 
     /**
-     * @param array{public_key:string,secret_key:?string,endpoint:string,trust_proxy_headers:bool,auto_pageview:bool} $config
+     * @param array{public_key:string,secret_key:?string,endpoint:?string,trust_proxy_headers:bool,auto_pageview:bool} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $services = $container->services();
 
+        $options = ['trust_proxy_headers' => $config['trust_proxy_headers']];
+        if ($config['endpoint'] !== null) {
+            $options['endpoint'] = $config['endpoint'];
+        }
+
         $services->set(Client::class)
             ->args([
                 $config['public_key'],
                 $config['secret_key'],
-                [
-                    'endpoint' => $config['endpoint'],
-                    'trust_proxy_headers' => $config['trust_proxy_headers'],
-                ],
+                $options,
             ])
             ->public();
 

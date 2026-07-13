@@ -17,8 +17,8 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
  * Le bundle testé sans kernel complet (robuste et rapide) :
- * — câblage : compilation d'un ContainerBuilder avec l'extension du bundle ;
- * — comportement : listener réel contre le serveur de capture HTTP du cœur.
+ * - câblage : compilation d'un ContainerBuilder avec l'extension du bundle ;
+ * - comportement : listener réel contre le serveur de capture HTTP du cœur.
  */
 final class BundleTest extends TestCase
 {
@@ -92,6 +92,10 @@ final class BundleTest extends TestCase
 
         $this->assertTrue($container->has(Client::class), 'les événements manuels restent possibles');
         $this->assertFalse($container->has(TrackRequestListener::class));
+
+        // Sans clé endpoint configurée, on n'en passe pas au client :
+        // l'endpoint par défaut du SDK cœur (SaaS Affluence) fait foi.
+        $this->assertArrayNotHasKey('endpoint', $container->getDefinition(Client::class)->getArgument(2));
     }
 
     public function test_le_listener_envoie_la_pageview_sur_kernel_terminate(): void
