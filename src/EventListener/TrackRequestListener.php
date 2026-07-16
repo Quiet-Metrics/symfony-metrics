@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace LaBoiteACode\WebAnalytics\Symfony\EventListener;
+namespace QuietMetrics\Symfony\EventListener;
 
-use LaBoiteACode\WebAnalytics\Client;
+use QuietMetrics\Client;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
 
 /**

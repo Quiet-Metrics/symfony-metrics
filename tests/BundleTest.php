@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace LaBoiteACode\WebAnalytics\Symfony\Tests;
+namespace QuietMetrics\Symfony\Tests;
 
-use LaBoiteACode\WebAnalytics\Client;
-use LaBoiteACode\WebAnalytics\Symfony\EventListener\TrackRequestListener;
-use LaBoiteACode\WebAnalytics\Symfony\WebAnalyticsBundle;
-use LaBoiteACode\WebAnalytics\Tests\CaptureServer;
+use QuietMetrics\Client;
+use QuietMetrics\Symfony\EventListener\TrackRequestListener;
+use QuietMetrics\Symfony\QuietMetricsBundle;
+use QuietMetrics\Tests\CaptureServer;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,7 +26,7 @@ final class BundleTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        require_once __DIR__.'/../vendor/laboiteacode/webanalytics-php/tests/CaptureServer.php';
+        require_once __DIR__.'/../vendor/quiet-metrics/php-metrics/tests/CaptureServer.php';
         self::$server = new CaptureServer();
         self::$server->start();
     }
@@ -52,7 +52,7 @@ final class BundleTest extends TestCase
             'kernel.build_dir' => sys_get_temp_dir(),
             'kernel.cache_dir' => sys_get_temp_dir(),
         ]));
-        $extension = (new WebAnalyticsBundle())->getContainerExtension();
+        $extension = (new QuietMetricsBundle())->getContainerExtension();
         $container->registerExtension($extension);
         $container->loadFromExtension($extension->getAlias(), $config);
         $container->getCompilerPassConfig()->setRemovingPasses([]); // garde les services privés inspectables
@@ -61,19 +61,19 @@ final class BundleTest extends TestCase
         return $container;
     }
 
-    public function test_l_extension_s_appelle_webanalytics_et_cable_le_client(): void
+    public function test_l_extension_s_appelle_quiet_metrics_et_cable_le_client(): void
     {
         $container = $this->compile([
-            'public_key' => 'wa_pub_test',
-            'secret_key' => 'wa_sec_test',
+            'public_key' => 'qm_pub_test',
+            'secret_key' => 'qm_sec_test',
             'endpoint' => 'https://collecte.exemple.fr/api/v1/collect',
         ]);
 
         $this->assertTrue($container->has(Client::class));
 
         $definition = $container->getDefinition(Client::class);
-        $this->assertSame('wa_pub_test', $definition->getArgument(0));
-        $this->assertSame('wa_sec_test', $definition->getArgument(1));
+        $this->assertSame('qm_pub_test', $definition->getArgument(0));
+        $this->assertSame('qm_sec_test', $definition->getArgument(1));
         $this->assertSame('https://collecte.exemple.fr/api/v1/collect', $definition->getArgument(2)['endpoint']);
 
         // Pageview auto : listener présent et branché sur kernel.terminate.
@@ -86,7 +86,7 @@ final class BundleTest extends TestCase
     public function test_auto_pageview_desactivable(): void
     {
         $container = $this->compile([
-            'public_key' => 'wa_pub_test',
+            'public_key' => 'qm_pub_test',
             'auto_pageview' => false,
         ]);
 
@@ -94,13 +94,13 @@ final class BundleTest extends TestCase
         $this->assertFalse($container->has(TrackRequestListener::class));
 
         // Sans clé endpoint configurée, on n'en passe pas au client :
-        // l'endpoint par défaut du SDK cœur (SaaS Affluence) fait foi.
+        // l'endpoint par défaut du SDK cœur (SaaS Quiet Metrics) fait foi.
         $this->assertArrayNotHasKey('endpoint', $container->getDefinition(Client::class)->getArgument(2));
     }
 
     public function test_le_listener_envoie_la_pageview_sur_kernel_terminate(): void
     {
-        $listener = new TrackRequestListener(new Client('wa_pub_test', 'wa_sec_test', [
+        $listener = new TrackRequestListener(new Client('qm_pub_test', 'qm_sec_test', [
             'endpoint' => self::$server->endpoint(),
             'async' => false,
         ]));
@@ -118,16 +118,16 @@ final class BundleTest extends TestCase
         $this->assertSame('https://monsite.fr/tarifs', $payload['u']);
         $this->assertSame('NavigateurTest/1.0', $payload['ua']);
 
-        $timestamp = $request['headers']['x-wa-timestamp'];
+        $timestamp = $request['headers']['x-qm-timestamp'];
         $this->assertSame(
-            hash_hmac('sha256', $timestamp.'.'.$request['body'], 'wa_sec_test'),
-            $request['headers']['x-wa-signature'],
+            hash_hmac('sha256', $timestamp.'.'.$request['body'], 'qm_sec_test'),
+            $request['headers']['x-qm-signature'],
         );
     }
 
     public function test_le_listener_ignore_json_erreurs_et_non_get(): void
     {
-        $listener = new TrackRequestListener(new Client('wa_pub_test', null, [
+        $listener = new TrackRequestListener(new Client('qm_pub_test', null, [
             'endpoint' => self::$server->endpoint(),
             'async' => false,
         ]));
