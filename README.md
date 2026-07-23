@@ -1,6 +1,10 @@
 # quiet-metrics/symfony-metrics
 
-Bundle Symfony (6.4 et 7.x) du SDK PHP [Quiet Metrics](https://quietmetrics.dev) : mesure d'audience sans cookies, 100 % côté serveur, imblocable par les adblockers. Les pages vues partent automatiquement en `kernel.terminate`, sans JavaScript et sans jamais ralentir le site.
+![Quiet Metrics: Symfony bundle](art/banner.png)
+
+> 🇫🇷 [Version française](README.fr.md)
+
+Symfony bundle (6.4 and 7.x) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: cookie-free audience measurement, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
 
 ## Installation
 
@@ -8,7 +12,7 @@ Bundle Symfony (6.4 et 7.x) du SDK PHP [Quiet Metrics](https://quietmetrics.dev)
 composer require quiet-metrics/symfony-metrics
 ```
 
-Avec Symfony Flex, le bundle est enregistré automatiquement (type `symfony-bundle`). Sans Flex, ajoutez-le à `config/bundles.php` :
+With Symfony Flex, the bundle is registered automatically (`symfony-bundle` type). Without Flex, add it to `config/bundles.php`:
 
 ```php
 // config/bundles.php
@@ -18,9 +22,9 @@ return [
 ];
 ```
 
-### Avant la publication sur Packagist (installation locale)
+### Before the Packagist release (private beta)
 
-Depuis un projet Symfony sur la même machine, déclarez les deux path repositories (le bundle dépend du package cœur en version de développement) :
+Declare both GitHub repositories (access required), as the bundle depends on the core package:
 
 ```json
 {
@@ -37,17 +41,17 @@ composer require quiet-metrics/symfony-metrics:@dev
 
 ## Configuration
 
-L'alias de configuration est `quiet_metrics`.
+The configuration alias is `quiet_metrics`.
 
 ```yaml
 # config/packages/quiet_metrics.yaml
 quiet_metrics:
-    public_key: '%env(QUIET_METRICS_PUBLIC_KEY)%'   # clé publique du site (obligatoire)
-    secret_key: '%env(QUIET_METRICS_SECRET_KEY)%'   # facultative : signe chaque envoi (HMAC)
+    public_key: '%env(QUIET_METRICS_PUBLIC_KEY)%'   # site public key (required)
+    secret_key: '%env(QUIET_METRICS_SECRET_KEY)%'   # essential server-side: signs every hit (HMAC)
 
-    # endpoint: 'https://quietmetrics.dev/api/v1/collect'  # défaut : endpoint SaaS Quiet Metrics du SDK cœur
-    # trust_proxy_headers: true   # application derrière un reverse proxy (X-Forwarded-For / X-Forwarded-Proto)
-    # auto_pageview: false        # désactive la pageview automatique (événements manuels uniquement)
+    # endpoint: 'https://quietmetrics.dev/api/v1/collect'  # default: core SDK's Quiet Metrics SaaS endpoint
+    # trust_proxy_headers: true   # application behind a reverse proxy (X-Forwarded-For / X-Forwarded-Proto)
+    # auto_pageview: false        # disables the automatic pageview (manual events only)
 ```
 
 ```bash
@@ -56,11 +60,16 @@ QUIET_METRICS_PUBLIC_KEY=qm_pub_xxx
 QUIET_METRICS_SECRET_KEY=qm_sec_xxx
 ```
 
+> **Why the secret key matters.** It enables signed mode, the only case where
+> the visitor IP and User-Agent carried by your server are trusted. Without
+> it, every hit is attributed to your server's IP: all your visitors would
+> count as one.
+
 ## Usage
 
-Les pageviews des réponses HTML réussies partent toutes seules : rien à faire.
+Pageviews for successful HTML responses are sent on their own: nothing to do.
 
-Pour les événements personnalisés, injectez le client du SDK cœur (`QuietMetrics\Client`, câblé par le bundle) :
+For custom events, inject the core SDK client (`QuietMetrics\Client`, wired by the bundle):
 
 ```php
 use QuietMetrics\Client;
@@ -72,28 +81,28 @@ final class CheckoutController
 
     public function confirm(): Response
     {
-        $this->quietMetrics->event('achat', ['montant' => 49, 'plan' => 'pro']);
+        $this->quietMetrics->event('purchase', ['amount' => 49, 'plan' => 'pro']);
         // ...
     }
 }
 ```
 
-Avec `auto_pageview: false`, vous gardez la main sur les pages vues :
+With `auto_pageview: false`, you keep control over page views:
 
 ```php
-// Contexte (URL, referrer, IP, User-Agent, langue) déduit de la requête
-// courante, surchargeable clé par clé :
+// Context (URL, referrer, IP, User-Agent, language) inferred from the
+// current request, overridable key by key:
 $this->quietMetrics->pageview();
-$this->quietMetrics->pageview(['url' => 'https://monsite.fr/merci']);
+$this->quietMetrics->pageview(['url' => 'https://mysite.com/thank-you']);
 ```
 
-## Comment ça marche
+## How it works
 
-- L'envoi a lieu sur `kernel.terminate` : la réponse est déjà partie chez le visiteur, aucune latence perçue. Le client du SDK cœur est lui-même non bloquant (socket write-and-forget, repli cURL avec timeout court, échecs silencieux) : l'analytics ne casse jamais le site hôte.
-- Le listener ne compte que les vraies pages : requêtes `GET`, réponse 2xx, `Content-Type` HTML, hors requêtes AJAX.
-- Le contexte est lu depuis l'objet `Request` (jamais les superglobales) : correct sous RoadRunner et FrankenPHP, dans les tests, et aligné sur les trusted proxies configurés dans l'application hôte.
-- Avec `secret_key`, chaque envoi est signé HMAC-SHA256 (en-têtes `X-QM-Timestamp` et `X-QM-Signature`) ; l'IP et le User-Agent du visiteur transmis par le SDK font alors foi côté collecte.
+- Sending happens on `kernel.terminate`: the response has already reached the visitor, zero perceived latency. The core SDK client is itself non-blocking (write-and-forget socket, short-timeout cURL fallback, silent failures): analytics never breaks the host site.
+- The listener only counts real pages: `GET` requests, 2xx responses, HTML `Content-Type`, excluding AJAX requests.
+- The context is read from the `Request` object (never from superglobals): correct under RoadRunner and FrankenPHP, in tests, and aligned with the host application's trusted proxies.
+- With `secret_key`, every send is HMAC-SHA256 signed (`X-QM-Timestamp` and `X-QM-Signature` headers); the visitor IP and User-Agent carried by the SDK are then trusted on the collection side.
 
-## Licence
+## License
 
-MIT. Un produit [La Boîte à Code](https://laboiteacode.fr).
+MIT. A [La Boîte à Code](https://laboiteacode.fr) product.
