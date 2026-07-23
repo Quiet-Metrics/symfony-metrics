@@ -1,6 +1,6 @@
 # quiet-metrics/symfony-metrics
 
-Bundle Symfony (6.4 et 7.x) du SDK PHP [Quiet Metrics](https://app.quietmetrics.dev) : mesure d'audience sans cookies, 100 % côté serveur, imblocable par les adblockers. Les pages vues partent automatiquement en `kernel.terminate`, sans JavaScript et sans jamais ralentir le site.
+Bundle Symfony (6.4 et 7.x) du SDK PHP [Quiet Metrics](https://quietmetrics.dev) : mesure d'audience sans cookies, 100 % côté serveur, imblocable par les adblockers. Les pages vues partent automatiquement en `kernel.terminate`, sans JavaScript et sans jamais ralentir le site.
 
 ## Installation
 
@@ -45,7 +45,7 @@ quiet_metrics:
     public_key: '%env(QUIET_METRICS_PUBLIC_KEY)%'   # clé publique du site (obligatoire)
     secret_key: '%env(QUIET_METRICS_SECRET_KEY)%'   # facultative : signe chaque envoi (HMAC)
 
-    # endpoint: 'https://app.quietmetrics.dev/api/v1/collect'  # défaut : endpoint SaaS Quiet Metrics du SDK cœur
+    # endpoint: 'https://quietmetrics.dev/api/v1/collect'  # défaut : endpoint SaaS Quiet Metrics du SDK cœur
     # trust_proxy_headers: true   # application derrière un reverse proxy (X-Forwarded-For / X-Forwarded-Proto)
     # auto_pageview: false        # désactive la pageview automatique (événements manuels uniquement)
 ```
