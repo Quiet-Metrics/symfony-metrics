@@ -1,0 +1,27 @@
+name: Tests
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+    name: "PHP 8.4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+      # Dépôt scindé : le path repository ../php du monorepo n'existe pas ici,
+      # on le remplace par le dépôt VCS du cœur. Tant que les dépôts sont
+      # privés, créer le secret d'organisation QM_PACKAGES_TOKEN (PAT lecture
+      # seule sur les dépôts Quiet-Metrics) ; inutile une fois publics.
+      - run: composer config repositories.0 vcs https://github.com/Quiet-Metrics/php-metrics
+      - run: |
+          if [ -n "$QM_TOKEN" ]; then
+            composer config --global github-oauth.github.com "$QM_TOKEN"
+          fi
+        env:
+          QM_TOKEN: ${{ secrets.QM_PACKAGES_TOKEN }}
+      - run: composer update --no-interaction --no-progress
+      - run: vendor/bin/phpunit

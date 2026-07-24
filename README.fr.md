@@ -36,7 +36,7 @@ Déclarez les deux dépôts GitHub (accès requis), le bundle dépend du package
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:@dev
+composer require quiet-metrics/symfony-metrics:^0.1
 ```
 
 ## Configuration
@@ -105,4 +105,4 @@ $this->quietMetrics->pageview(['url' => 'https://monsite.fr/merci']);
 
 ## Licence
 
-MIT. Un produit [La Boîte à Code](https://laboiteacode.fr).
+MIT. Un produit [La Boîte à Code](https://laboiteacode.fr) pour [Quiet Metrics](https://quietmetrics.dev).

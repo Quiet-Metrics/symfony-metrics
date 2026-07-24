@@ -3,6 +3,17 @@
     "description": "Bundle Symfony du SDK Quiet Metrics (La Boîte à Code) : pageviews serveur automatiques via kernel.terminate et configuration sémantique.",
     "type": "symfony-bundle",
     "license": "MIT",
+    "homepage": "https://quietmetrics.dev",
+    "authors": [
+        {
+            "name": "Alexandre Ribes (La Boîte à Code)",
+            "homepage": "https://laboiteacode.fr"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/Quiet-Metrics/symfony-metrics/issues",
+        "source": "https://github.com/Quiet-Metrics/symfony-metrics"
+    },
     "keywords": [
         "analytics",
         "symfony",
@@ -13,7 +24,7 @@
     ],
     "require": {
         "php": ">=8.1",
-        "quiet-metrics/php-metrics": "^1.0@dev",
+        "quiet-metrics/php-metrics": "^0.1",
         "symfony/config": "^6.4 || ^7.0",
         "symfony/dependency-injection": "^6.4 || ^7.0",
         "symfony/http-kernel": "^6.4 || ^7.0"
@@ -46,5 +57,7 @@
     },
     "scripts": {
         "test": "phpunit"
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
