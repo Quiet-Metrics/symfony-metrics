@@ -42,7 +42,10 @@
             "type": "path",
             "url": "../php",
             "options": {
-                "symlink": true
+                "symlink": true,
+                "versions": {
+                    "quiet-metrics/php-metrics": "0.1.x-dev"
+                }
             }
         }
     ],
