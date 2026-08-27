@@ -22,9 +22,9 @@ return [
 ];
 ```
 
-### Before the Packagist release (private beta)
+### Before the Packagist release
 
-Declare both GitHub repositories (access required), as the bundle depends on the core package:
+Declare both GitHub repositories, as the bundle depends on the core package. `php-metrics` is public; `symfony-metrics` is still private, so access to that one is required:
 
 ```json
 {

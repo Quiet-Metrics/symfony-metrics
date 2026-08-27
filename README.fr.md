@@ -22,9 +22,9 @@ return [
 ];
 ```
 
-### Avant la publication sur Packagist (bêta privée)
+### Avant la publication sur Packagist
 
-Déclarez les deux dépôts GitHub (accès requis), le bundle dépend du package cœur :
+Déclarez les deux dépôts GitHub, le bundle dépend du package cœur. `php-metrics` est public ; `symfony-metrics` est encore privé, l'accès n'est requis que pour celui-là :
 
 ```json
 {
