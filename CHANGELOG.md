@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 Full pre-publication review pending (the core PHP SDK and the Laravel bridge already went through theirs).
 
+## [0.1.1] - 2026-08-27
+
+Documentation and artwork only. The bundle code is unchanged since 0.1.0.
+
+### Changed
+- Banner redrawn to the current brand: product typefaces instead of webfonts that were never part of the design system, the damped wave instead of the pre-redesign bars, title in ink rather than in the accent colour.
+- Install instructions: `quiet-metrics/php-metrics` is on Packagist, so only this repository needs a VCS entry.
+
 ## [0.1.0] - 2026-07-24
 
 First tagged snapshot (private beta).
