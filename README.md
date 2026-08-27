@@ -24,12 +24,11 @@ return [
 
 ### Before the Packagist release
 
-Declare both GitHub repositories, as the bundle depends on the core package. `php-metrics` is public; `symfony-metrics` is still private, so access to that one is required:
+`symfony-metrics` is not on Packagist yet, and its repository is private. Declare it (access required); the core package it depends on comes from Packagist:
 
 ```json
 {
     "repositories": [
-        { "type": "vcs", "url": "https://github.com/Quiet-Metrics/php-metrics" },
         { "type": "vcs", "url": "https://github.com/Quiet-Metrics/symfony-metrics" }
     ]
 }

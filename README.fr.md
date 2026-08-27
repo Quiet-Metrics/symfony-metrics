@@ -24,12 +24,11 @@ return [
 
 ### Avant la publication sur Packagist
 
-Déclarez les deux dépôts GitHub, le bundle dépend du package cœur. `php-metrics` est public ; `symfony-metrics` est encore privé, l'accès n'est requis que pour celui-là :
+`symfony-metrics` n'est pas encore sur Packagist, et son dépôt est privé. Déclarez-le (accès requis) ; le package cœur dont il dépend vient de Packagist :
 
 ```json
 {
     "repositories": [
-        { "type": "vcs", "url": "https://github.com/Quiet-Metrics/php-metrics" },
         { "type": "vcs", "url": "https://github.com/Quiet-Metrics/symfony-metrics" }
     ]
 }
