@@ -7,6 +7,7 @@ namespace QuietMetrics\Symfony;
 use QuietMetrics\Client;
 use QuietMetrics\Symfony\EventListener\OptOutListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
+use QuietMetrics\Symfony\EventListener\VisitListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -74,6 +75,21 @@ final class QuietMetricsBundle extends AbstractBundle
                 ->tag('kernel.event_listener', [
                     'event' => 'kernel.terminate',
                     'method' => 'onKernelTerminate',
+                ]);
+
+            // La fenêtre de continuité de visite, sur kernel.response : à
+            // kernel.terminate la réponse est déjà partie, il y serait trop
+            // tard pour un Set-Cookie.
+            //
+            // Enregistré ici, DANS la condition, à la différence
+            // d'OptOutListener : ce cookie accompagne un hit mesuré, et sans
+            // page vue automatique il n'y a pas de hit à accompagner. Un
+            // mécanisme de refus ne dépend pas d'une option de mesure ; une
+            // continuité de mesure, si.
+            $services->set(VisitListener::class)
+                ->tag('kernel.event_listener', [
+                    'event' => 'kernel.response',
+                    'method' => 'onKernelResponse',
                 ]);
         }
     }

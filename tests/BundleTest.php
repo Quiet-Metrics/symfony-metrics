@@ -7,6 +7,7 @@ namespace QuietMetrics\Symfony\Tests;
 use QuietMetrics\Client;
 use QuietMetrics\Symfony\EventListener\OptOutListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
+use QuietMetrics\Symfony\EventListener\VisitListener;
 use QuietMetrics\Symfony\QuietMetricsBundle;
 use QuietMetrics\Tests\CaptureServer;
 use PHPUnit\Framework\TestCase;
@@ -350,5 +351,168 @@ final class BundleTest extends TestCase
             'endpoint' => self::$server->endpoint(),
             'async' => false,
         ]));
+    }
+
+    /**
+     * La fenetre de visite se pose pendant la phase reponse.
+     *
+     * A kernel.terminate la reponse est deja partie chez le visiteur, il y
+     * serait trop tard pour un Set-Cookie : meme raison que pour le marqueur
+     * d'exclusion, et meme decoupage en deux listeners.
+     *
+     * A LA DIFFERENCE du marqueur d'exclusion, ce listener n'est PAS
+     * enregistre quand `auto_pageview` vaut false, et c'est voulu : le cookie
+     * accompagne un hit mesure. Sans page vue automatique il n'y a pas de hit
+     * a accompagner, et l'ouvrir quand meme reviendrait a ecrire chez le
+     * visiteur sans rien mesurer. Un refus ne depend pas d'une option de
+     * mesure ; une continuite de mesure, si.
+     */
+    public function test_le_listener_de_visite_est_branche_sur_kernel_response(): void
+    {
+        $container = $this->compile(['public_key' => 'qm_pub_test']);
+
+        $tags = $container->getDefinition(VisitListener::class)->getTag('kernel.event_listener');
+        $this->assertSame('kernel.response', $tags[0]['event']);
+        $this->assertSame('onKernelResponse', $tags[0]['method']);
+    }
+
+    public function test_sans_pageview_automatique_aucune_fenetre_de_visite_n_est_ouverte(): void
+    {
+        $container = $this->compile([
+            'public_key' => 'qm_pub_test',
+            'auto_pageview' => false,
+        ]);
+
+        $this->assertFalse(
+            $container->has(VisitListener::class),
+            'la fenetre accompagne un hit mesure : sans hit, rien a ecrire chez le visiteur',
+        );
+
+        $this->assertTrue(
+            $container->has(OptOutListener::class),
+            'le refus, lui, reste posable : il ne depend d aucune option de mesure',
+        );
+    }
+
+    /**
+     * Premier hit : la fenetre s'ouvre, et le hit ne porte pas `c`.
+     *
+     * `qm_visit=1` vaut la meme chose chez tout le monde : il n'identifie
+     * personne, il dit qu'une visite est en cours sur ce navigateur. Sans lui,
+     * une empreinte qui change en cours de visite (4G puis wifi) compte deux
+     * visiteurs uniques pour une seule personne.
+     */
+    public function test_le_listener_ouvre_la_fenetre_de_visite_sur_un_hit_mesure(): void
+    {
+        $request = Request::create('https://monsite.fr/tarifs', 'GET', server: ['HTTP_USER_AGENT' => 'NavigateurTest/1.0']);
+        $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+
+        $this->visite($request, $response);
+        $this->listener()->onKernelTerminate(new TerminateEvent($this->stubKernel(), $request, $response));
+
+        $cookies = $response->headers->getCookies();
+        $this->assertCount(1, $cookies);
+        $this->assertSame(Client::VISIT_MARKER, $cookies[0]->getName());
+        $this->assertSame('1', $cookies[0]->getValue(), 'valeur constante : elle n identifie personne');
+        $this->assertSame('/', $cookies[0]->getPath());
+        $this->assertSame('lax', strtolower((string) $cookies[0]->getSameSite()));
+        $this->assertTrue($cookies[0]->isSecure(), 'requete en https : la fenetre est secure');
+        $this->assertFalse($cookies[0]->isHttpOnly(), 'le traceur JS doit lire la meme fenetre');
+        $this->assertEqualsWithDelta(
+            time() + Client::VISIT_LIFETIME,
+            $cookies[0]->getExpiresTime(),
+            60,
+            'dix minutes, comme le traceur JS',
+        );
+
+        $payload = json_decode(self::$server->requests()[0]['body'], true);
+        $this->assertArrayNotHasKey('c', $payload, 'premier hit : aucune visite n etait en cours');
+    }
+
+    /**
+     * Le hit suivant porte `c`, et la fenetre glisse.
+     *
+     * L'etat est lu sur la Request (ce que le navigateur a envoye) et jamais
+     * dans `$_COOKIE` : sous RoadRunner ou FrankenPHP la superglobale peut
+     * appartenir a la requete precedente, et la visite d'un visiteur serait
+     * recollee a celle du suivant.
+     */
+    public function test_le_hit_suivant_porte_c_et_repousse_la_fenetre(): void
+    {
+        $request = Request::create(
+            'https://monsite.fr/tarifs',
+            'GET',
+            [],
+            [Client::VISIT_MARKER => '1'],
+            [],
+            ['HTTP_USER_AGENT' => 'NavigateurTest/1.0'],
+        );
+        $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+
+        $this->visite($request, $response);
+        $this->listener()->onKernelTerminate(new TerminateEvent($this->stubKernel(), $request, $response));
+
+        $payload = json_decode(self::$server->requests()[0]['body'], true);
+        $this->assertSame(1, $payload['c'], 'une visite etait deja en cours sur ce navigateur');
+
+        $cookies = $response->headers->getCookies();
+        $this->assertCount(1, $cookies, 'expiration glissante : chaque hit repousse la fenetre');
+        $this->assertEqualsWithDelta(time() + Client::VISIT_LIFETIME, $cookies[0]->getExpiresTime(), 60);
+    }
+
+    /** Rien de mesure, rien d'ecrit : la fenetre suit le hit, pas la requete. */
+    public function test_aucune_fenetre_de_visite_quand_rien_n_est_mesure(): void
+    {
+        $cases = [
+            [Request::create('https://monsite.fr/api'), new Response('{}', 200, ['Content-Type' => 'application/json'])],
+            [Request::create('https://monsite.fr/form', 'POST'), new Response('ok', 200, ['Content-Type' => 'text/html'])],
+            [Request::create('https://monsite.fr/oups'), new Response('non', 500, ['Content-Type' => 'text/html'])],
+            [
+                Request::create('https://monsite.fr/tarifs', 'GET', server: ['HTTP_SEC_PURPOSE' => 'prefetch;prerender']),
+                new Response('ok', 200, ['Content-Type' => 'text/html']),
+            ],
+        ];
+
+        foreach ($cases as [$request, $response]) {
+            $this->visite($request, $response);
+            $this->assertSame([], $response->headers->getCookies(), (string) $request->getRequestUri());
+        }
+    }
+
+    /** On n'ecrit RIEN chez quelqu'un qui a refuse la mesure. */
+    public function test_aucune_fenetre_de_visite_chez_une_personne_exclue(): void
+    {
+        $deja = new Response('ok', 200, ['Content-Type' => 'text/html']);
+        $this->visite(
+            Request::create('https://monsite.fr/tarifs', 'GET', [], [Client::OPT_OUT_MARKER => '1']),
+            $deja,
+        );
+        $this->assertSame([], $deja->headers->getCookies(), 'refus deja pose');
+
+        // La requete qui POSE le refus n'ouvre pas de fenetre non plus : le
+        // refus vaut des la requete qui le demande.
+        $pose = new Response('ok', 200, ['Content-Type' => 'text/html']);
+        $request = Request::create('https://monsite.fr/tarifs?'.Client::OPT_OUT_MARKER.'=1');
+        $this->visite($request, $pose);
+        (new OptOutListener)->onKernelResponse(new ResponseEvent(
+            $this->stubKernel(),
+            $request,
+            HttpKernelInterface::MAIN_REQUEST,
+            $pose,
+        ));
+
+        $noms = array_map(static fn ($cookie) => $cookie->getName(), $pose->headers->getCookies());
+        $this->assertSame([Client::OPT_OUT_MARKER], $noms, 'le refus se pose, la visite non');
+    }
+
+    /** Le listener de visite, joue sur la phase reponse. */
+    private function visite(Request $request, Response $response): void
+    {
+        (new VisitListener)->onKernelResponse(new ResponseEvent(
+            $this->stubKernel(),
+            $request,
+            HttpKernelInterface::MAIN_REQUEST,
+            $response,
+        ));
     }
 }
