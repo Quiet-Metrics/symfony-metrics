@@ -12,6 +12,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
@@ -81,6 +82,12 @@ final class BundleTest extends TestCase
         $tags = $listener->getTag('kernel.event_listener');
         $this->assertSame('kernel.terminate', $tags[0]['event']);
         $this->assertSame('onKernelTerminate', $tags[0]['method']);
+
+        // Le marqueur d'exclusion se pose pendant la phase reponse : sur
+        // kernel.terminate la reponse est deja partie chez le visiteur, il y
+        // serait trop tard pour ajouter un en-tete Set-Cookie.
+        $this->assertSame('kernel.response', $tags[1]['event']);
+        $this->assertSame('onKernelResponse', $tags[1]['method']);
     }
 
     public function test_auto_pageview_desactivable(): void
@@ -125,6 +132,33 @@ final class BundleTest extends TestCase
         );
     }
 
+    /**
+     * Un préchargement annoncé par le navigateur n'est pas une visite.
+     *
+     * Lu sur la Request, jamais dans `$_SERVER` : sous RoadRunner ou
+     * FrankenPHP la superglobale peut appartenir à une requête precedente.
+     */
+    public function test_le_listener_ignore_un_prechargement_du_navigateur(): void
+    {
+        $listener = new TrackRequestListener(new Client('qm_pub_test', null, [
+            'endpoint' => self::$server->endpoint(),
+            'async' => false,
+        ]));
+
+        foreach ([['HTTP_SEC_PURPOSE', 'prefetch;prerender'], ['HTTP_PURPOSE', 'prefetch'], ['HTTP_X_MOZ', 'prefetch']] as [$entete, $valeur]) {
+            $listener->onKernelTerminate(new TerminateEvent(
+                $this->stubKernel(),
+                Request::create('https://monsite.fr/tarifs', 'GET', server: [
+                    'HTTP_USER_AGENT' => 'NavigateurTest/1.0',
+                    $entete => $valeur,
+                ]),
+                new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']),
+            ));
+        }
+
+        $this->assertSame([], self::$server->requests(1, 400));
+    }
+
     public function test_le_listener_ignore_json_erreurs_et_non_get(): void
     {
         $listener = new TrackRequestListener(new Client('qm_pub_test', null, [
@@ -154,5 +188,123 @@ final class BundleTest extends TestCase
                 return new Response();
             }
         };
+    }
+
+
+    /**
+     * Le marqueur d'exclusion pose par la personne arrete la mesure.
+     *
+     * Lu sur la Request et jamais dans `$_COOKIE` : sous RoadRunner ou
+     * FrankenPHP la superglobale peut appartenir a la requete precedente, et
+     * le refus d'un visiteur exclurait alors le suivant.
+     */
+    public function test_le_listener_ignore_un_visiteur_qui_a_pose_le_marqueur(): void
+    {
+        $this->listener()->onKernelTerminate(new TerminateEvent(
+            $this->stubKernel(),
+            Request::create('https://monsite.fr/tarifs', 'GET', [], [Client::OPT_OUT_MARKER => '1'], [], [
+                'HTTP_USER_AGENT' => 'NavigateurTest/1.0',
+            ]),
+            new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']),
+        ));
+
+        $this->assertSame([], self::$server->requests(1, 400));
+    }
+
+    /**
+     * `?qm_ignore=1` pose le marqueur sur la reponse, et la visite qui le pose
+     * ne se compte pas elle-meme.
+     */
+    public function test_le_listener_pose_le_marqueur_demande_par_l_url_sans_compter_la_visite(): void
+    {
+        $listener = $this->listener();
+        $request = Request::create('https://monsite.fr/tarifs?'.Client::OPT_OUT_MARKER.'=1');
+        $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+
+        $listener->onKernelResponse(new ResponseEvent(
+            $this->stubKernel(),
+            $request,
+            HttpKernelInterface::MAIN_REQUEST,
+            $response,
+        ));
+        $listener->onKernelTerminate(new TerminateEvent($this->stubKernel(), $request, $response));
+
+        $cookies = $response->headers->getCookies();
+        $this->assertCount(1, $cookies);
+        $this->assertSame(Client::OPT_OUT_MARKER, $cookies[0]->getName());
+        $this->assertSame('1', $cookies[0]->getValue());
+        $this->assertSame('/', $cookies[0]->getPath());
+        $this->assertSame('lax', strtolower((string) $cookies[0]->getSameSite()));
+        $this->assertTrue($cookies[0]->isSecure(), 'requete en https : le marqueur est secure');
+        $this->assertFalse($cookies[0]->isHttpOnly(), 'le traceur JS doit lire le meme marqueur');
+        $this->assertEqualsWithDelta(
+            time() + Client::OPT_OUT_LIFETIME,
+            $cookies[0]->getExpiresTime(),
+            60,
+            'cinq ans, comme le traceur JS',
+        );
+
+        $this->assertSame(
+            [],
+            self::$server->requests(1, 400),
+            'la visite qui pose le refus ne se compte pas elle-meme',
+        );
+    }
+
+    /** `?qm_ignore=0` retire le marqueur, et la visite recompte des maintenant. */
+    public function test_le_listener_retire_le_marqueur_demande_par_l_url_et_recompte_la_visite(): void
+    {
+        $listener = $this->listener();
+        $request = Request::create(
+            'https://monsite.fr/tarifs?'.Client::OPT_OUT_MARKER.'=0',
+            'GET',
+            [],
+            [Client::OPT_OUT_MARKER => '1'],
+            [],
+            ['HTTP_USER_AGENT' => 'NavigateurTest/1.0'],
+        );
+        $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+
+        $listener->onKernelResponse(new ResponseEvent(
+            $this->stubKernel(),
+            $request,
+            HttpKernelInterface::MAIN_REQUEST,
+            $response,
+        ));
+        $listener->onKernelTerminate(new TerminateEvent($this->stubKernel(), $request, $response));
+
+        $cookies = $response->headers->getCookies();
+        $this->assertCount(1, $cookies);
+        $this->assertSame(Client::OPT_OUT_MARKER, $cookies[0]->getName());
+        $this->assertLessThan(time(), $cookies[0]->getExpiresTime(), 'un marqueur retire expire dans le passe');
+
+        $this->assertCount(
+            1,
+            self::$server->requests(),
+            'retirer le refus remet la personne dans la mesure des cette visite',
+        );
+    }
+
+    /** Une URL sans signal ne pose ni ne retire quoi que ce soit. */
+    public function test_le_listener_ne_touche_au_marqueur_que_sur_signal(): void
+    {
+        $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+
+        $this->listener()->onKernelResponse(new ResponseEvent(
+            $this->stubKernel(),
+            Request::create('https://monsite.fr/tarifs'),
+            HttpKernelInterface::MAIN_REQUEST,
+            $response,
+        ));
+
+        $this->assertSame([], $response->headers->getCookies());
+    }
+
+    private function listener(): TrackRequestListener
+    {
+        return new TrackRequestListener(new Client('qm_pub_test', null, [
+            'endpoint' => self::$server->endpoint(),
+            'async' => false,
+        ]));
     }
 }

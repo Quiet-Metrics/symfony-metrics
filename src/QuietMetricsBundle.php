@@ -59,6 +59,13 @@ final class QuietMetricsBundle extends AbstractBundle
                 ->tag('kernel.event_listener', [
                     'event' => 'kernel.terminate',
                     'method' => 'onKernelTerminate',
+                ])
+                // Le marqueur d'exclusion se pose pendant la phase réponse :
+                // sur kernel.terminate la réponse est déjà partie chez le
+                // visiteur, il y serait trop tard pour un Set-Cookie.
+                ->tag('kernel.event_listener', [
+                    'event' => 'kernel.response',
+                    'method' => 'onKernelResponse',
                 ]);
         }
     }
