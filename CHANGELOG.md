@@ -3,6 +3,15 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
+## [0.3.0] - 2026-08-28
+
+### Added
+- **Visit continuity cookie.** The visitor fingerprint is recomputed on every hit from the subscriber network and the browser. When that network changes MID-VISIT (switching from mobile data to wifi), the fingerprint changes and the same person was counted as two unique visitors on the same day. `qm_visit` closes that: a first-party cookie of the tracked site, value `1`, sliding ten-minute window refreshed on each hit (`path=/`, `samesite=lax`, `secure` over https). It holds no identifier, its value being the same for everyone, and it is never set for someone who has opted out. Only its presence travels, as the `c` boolean of the payload.
+
+### Changed
+- New `VisitListener` on `kernel.response`. Unlike `OptOutListener`, it is registered only when `auto_pageview` is on: a refusal does not depend on a measurement option, a measurement cookie does.
+- Requires `quiet-metrics/php-metrics` `^0.3`.
+
 ## [0.2.0] - 2026-08-28
 
 Full pre-publication review pending (the core PHP SDK and the Laravel bridge already went through theirs).

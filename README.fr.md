@@ -35,7 +35,7 @@ return [
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.2
+composer require quiet-metrics/symfony-metrics:^0.3
 ```
 
 ## Configuration
@@ -107,6 +107,14 @@ https://monsite.fr/?qm_ignore=0     être compté à nouveau
 Le marqueur est un **cookie propriétaire de votre site**, nommé `qm_ignore` et valant `1` (`path=/`, `samesite=lax`, `secure` en https, cinq ans). Un listener dédié, `OptOutListener`, s'en charge sur la requête courante. Il est enregistré **quelle que soit la valeur d'`auto_pageview`** : un refus ne dépend pas d'une option de mesure. Rien à câbler.
 
 Il ne contient aucun identifiant (sa valeur est la même chez tout le monde), il n'est jamais transmis à Quiet Metrics, et il n'existe que pour arrêter la mesure : c'est un marqueur de refus, pas un traceur. Le tracker JS écrit en plus la même valeur en `localStorage`, mais un SDK serveur ne lit que le cookie : une seule visite suffit donc pour les deux modes de suivi.
+
+## Continuité de visite
+
+Quand l'empreinte visiteur change en cours de visite (4G puis wifi), la même personne compterait sinon pour deux visiteurs uniques le même jour. Un second **cookie propriétaire de votre site** ferme cet écart : `qm_visit`, valant `1` (`path=/`, `samesite=lax`, `secure` en https), sur une fenêtre glissante de dix minutes repoussée à chaque hit mesuré. Chaque hit reporte dans la clé `c` du payload s'il était déjà là.
+
+Sa valeur est constante, la même chez tout le monde : elle n'identifie personne, elle dit seulement qu'une visite est déjà en cours sur ce navigateur. Il n'est jamais écrit chez quelqu'un qui a posé le marqueur d'exclusion, ni quand rien n'est mesuré. Un `VisitListener` dédié l'écrit sur `kernel.response`, sur les requêtes dont `TrackRequestListener` envoie la page vue sur `kernel.terminate`. À la différence d'`OptOutListener`, il n'est enregistré que si `auto_pageview` est actif : un refus ne dépend pas d'une option de mesure, une continuité de mesure, si.
+
+À savoir si votre site est mis en cache : une réponse mesurée porte désormais un en-tête `Set-Cookie`, que certains reverse proxys et CDN prennent comme une raison de ne pas stocker la réponse.
 
 ## Comment ça marche
 

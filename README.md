@@ -35,7 +35,7 @@ return [
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.2
+composer require quiet-metrics/symfony-metrics:^0.3
 ```
 
 ## Configuration
@@ -107,6 +107,14 @@ https://mysite.com/?qm_ignore=0     be counted again
 The marker is a **first-party cookie of your own site**, named `qm_ignore` with the value `1` (`path=/`, `samesite=lax`, `secure` over https, five years). A dedicated `OptOutListener` takes care of it on the current request. It is registered **whatever `auto_pageview` is set to**: a refusal does not depend on a measurement option. Nothing to wire.
 
 It holds no identifier (its value is the same for everyone), it is never transmitted to Quiet Metrics, and it exists only to stop measurement: it is an opt-out marker, not a tracker. The JS tracker additionally writes the same value to `localStorage`, but a server-side SDK only ever reads the cookie: one visit therefore covers both tracking modes.
+
+## Visit continuity
+
+When the visitor fingerprint changes mid-visit (4G, then wifi), the same person would otherwise be counted as two unique visitors on the same day. A second **first-party cookie of your own site** closes that gap: `qm_visit`, value `1` (`path=/`, `samesite=lax`, `secure` over https), on a sliding ten-minute window pushed back by every measured hit. Each hit reports whether it was already there as the `c` key of the payload.
+
+Its value is a constant, the same for everyone, so it identifies nobody: it only says that a visit is already under way in this browser. It is never written to someone who has set the opt-out marker, and never written when nothing is measured. A dedicated `VisitListener` writes it on `kernel.response`, on the very requests whose pageview `TrackRequestListener` sends on `kernel.terminate`. Unlike `OptOutListener`, it is registered only when `auto_pageview` is on: a refusal does not depend on a measurement option, but a measurement cookie does.
+
+Note for cached sites: a measured response now carries a `Set-Cookie` header, which some reverse proxies and CDNs treat as a reason not to store the response.
 
 ## How it works
 
