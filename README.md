@@ -35,7 +35,7 @@ return [
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.1
+composer require quiet-metrics/symfony-metrics:^0.2
 ```
 
 ## Configuration
@@ -104,7 +104,7 @@ https://mysite.com/?qm_ignore=1     stop being counted
 https://mysite.com/?qm_ignore=0     be counted again
 ```
 
-The marker is a **first-party cookie of your own site**, named `qm_ignore` with the value `1` (`path=/`, `samesite=lax`, `secure` over https, five years). The bundle takes care of it on the current request: it stores or clears the marker, and sends nothing while it is there. Nothing to wire.
+The marker is a **first-party cookie of your own site**, named `qm_ignore` with the value `1` (`path=/`, `samesite=lax`, `secure` over https, five years). A dedicated `OptOutListener` takes care of it on the current request. It is registered **whatever `auto_pageview` is set to**: a refusal does not depend on a measurement option. Nothing to wire.
 
 It holds no identifier (its value is the same for everyone), it is never transmitted to Quiet Metrics, and it exists only to stop measurement: it is an opt-out marker, not a tracker. The JS tracker additionally writes the same value to `localStorage`, but a server-side SDK only ever reads the cookie: one visit therefore covers both tracking modes.
 

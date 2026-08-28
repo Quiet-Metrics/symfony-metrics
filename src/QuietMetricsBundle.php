@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace QuietMetrics\Symfony;
 
 use QuietMetrics\Client;
+use QuietMetrics\Symfony\EventListener\OptOutListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -53,19 +54,26 @@ final class QuietMetricsBundle extends AbstractBundle
             ])
             ->public();
 
+        // TOUJOURS enregistré, y compris quand `auto_pageview` vaut false.
+        // Le marqueur voyageait dans le listener de mesure, si bien que couper
+        // la page vue automatique coupait aussi la possibilité de se retirer,
+        // alors que la LECTURE du refus, elle, continuait de fonctionner. Un
+        // mécanisme de refus ne se désactive pas avec une option de confort.
+        //
+        // Sur kernel.response : à kernel.terminate la réponse est déjà partie
+        // chez le visiteur, il y serait trop tard pour un Set-Cookie.
+        $services->set(OptOutListener::class)
+            ->tag('kernel.event_listener', [
+                'event' => 'kernel.response',
+                'method' => 'onKernelResponse',
+            ]);
+
         if ($config['auto_pageview']) {
             $services->set(TrackRequestListener::class)
                 ->args([service(Client::class)])
                 ->tag('kernel.event_listener', [
                     'event' => 'kernel.terminate',
                     'method' => 'onKernelTerminate',
-                ])
-                // Le marqueur d'exclusion se pose pendant la phase réponse :
-                // sur kernel.terminate la réponse est déjà partie chez le
-                // visiteur, il y serait trop tard pour un Set-Cookie.
-                ->tag('kernel.event_listener', [
-                    'event' => 'kernel.response',
-                    'method' => 'onKernelResponse',
                 ]);
         }
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace QuietMetrics\Symfony\Tests;
 
 use QuietMetrics\Client;
+use QuietMetrics\Symfony\EventListener\OptOutListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
 use QuietMetrics\Symfony\QuietMetricsBundle;
 use QuietMetrics\Tests\CaptureServer;
@@ -86,8 +87,47 @@ final class BundleTest extends TestCase
         // Le marqueur d'exclusion se pose pendant la phase reponse : sur
         // kernel.terminate la reponse est deja partie chez le visiteur, il y
         // serait trop tard pour ajouter un en-tete Set-Cookie.
-        $this->assertSame('kernel.response', $tags[1]['event']);
-        $this->assertSame('onKernelResponse', $tags[1]['method']);
+        $this->assertCount(1, $tags, 'le listener de mesure ne porte plus que kernel.terminate');
+
+        // Le marqueur d'exclusion se pose pendant la phase reponse, dans un
+        // listener a lui : a kernel.terminate la reponse est deja partie chez
+        // le visiteur, il y serait trop tard pour un Set-Cookie. Et il reste
+        // enregistre quand la page vue automatique est coupee.
+        $marqueur = $container->getDefinition(OptOutListener::class)->getTag('kernel.event_listener');
+        $this->assertSame('kernel.response', $marqueur[0]['event']);
+        $this->assertSame('onKernelResponse', $marqueur[0]['method']);
+    }
+
+    /**
+     * Le refus ne depend pas de l'option de mesure.
+     *
+     * Le marqueur d'exclusion voyageait dans le meme listener que la page vue
+     * automatique, donc `auto_pageview: false` le desactivait avec elle : sur
+     * ces applications, `?qm_ignore=1` ne faisait rien. La LECTURE du refus
+     * fonctionnait pourtant, le SDK coeur lisant `$_COOKIE`, si bien qu'un
+     * visiteur ne pouvait plus se retirer mais restait exclu s'il l'avait fait
+     * ailleurs. Un mecanisme de refus ne se desactive pas avec une option de
+     * confort.
+     */
+    public function test_le_marqueur_reste_posable_sans_pageview_automatique(): void
+    {
+        $container = $this->compile([
+            'public_key' => 'qm_pub_test',
+            'auto_pageview' => false,
+        ]);
+
+        $this->assertFalse(
+            $container->has(TrackRequestListener::class),
+            'la page vue automatique reste bien desactivee',
+        );
+
+        $this->assertTrue(
+            $container->has(OptOutListener::class),
+            'le visiteur doit pouvoir poser son refus meme sans mesure automatique',
+        );
+
+        $tags = $container->getDefinition(OptOutListener::class)->getTag('kernel.event_listener');
+        $this->assertSame('kernel.response', $tags[0]['event']);
     }
 
     public function test_auto_pageview_desactivable(): void
@@ -221,7 +261,9 @@ final class BundleTest extends TestCase
         $request = Request::create('https://monsite.fr/tarifs?'.Client::OPT_OUT_MARKER.'=1');
         $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
 
-        $listener->onKernelResponse(new ResponseEvent(
+        // Les deux listeners, chacun sur sa phase : le refus se pose pendant
+        // la reponse, et la mesure, qui le lit a terminate, s'abstient.
+        (new OptOutListener)->onKernelResponse(new ResponseEvent(
             $this->stubKernel(),
             $request,
             HttpKernelInterface::MAIN_REQUEST,
@@ -265,7 +307,9 @@ final class BundleTest extends TestCase
         );
         $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
 
-        $listener->onKernelResponse(new ResponseEvent(
+        // Les deux listeners, chacun sur sa phase : le refus se retire pendant
+        // la reponse, la page vue part a terminate.
+        (new OptOutListener)->onKernelResponse(new ResponseEvent(
             $this->stubKernel(),
             $request,
             HttpKernelInterface::MAIN_REQUEST,
@@ -290,7 +334,7 @@ final class BundleTest extends TestCase
     {
         $response = new Response('ok', 200, ['Content-Type' => 'text/html; charset=UTF-8']);
 
-        $this->listener()->onKernelResponse(new ResponseEvent(
+        (new OptOutListener)->onKernelResponse(new ResponseEvent(
             $this->stubKernel(),
             Request::create('https://monsite.fr/tarifs'),
             HttpKernelInterface::MAIN_REQUEST,

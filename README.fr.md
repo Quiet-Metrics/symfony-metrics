@@ -35,7 +35,7 @@ return [
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.1
+composer require quiet-metrics/symfony-metrics:^0.2
 ```
 
 ## Configuration
@@ -104,7 +104,7 @@ https://monsite.fr/?qm_ignore=1     ne plus être compté
 https://monsite.fr/?qm_ignore=0     être compté à nouveau
 ```
 
-Le marqueur est un **cookie propriétaire de votre site**, nommé `qm_ignore` et valant `1` (`path=/`, `samesite=lax`, `secure` en https, cinq ans). Le bundle s'en charge sur la requête courante : il pose ou retire le marqueur, et n'envoie plus rien tant qu'il est là. Rien à câbler.
+Le marqueur est un **cookie propriétaire de votre site**, nommé `qm_ignore` et valant `1` (`path=/`, `samesite=lax`, `secure` en https, cinq ans). Un listener dédié, `OptOutListener`, s'en charge sur la requête courante. Il est enregistré **quelle que soit la valeur d'`auto_pageview`** : un refus ne dépend pas d'une option de mesure. Rien à câbler.
 
 Il ne contient aucun identifiant (sa valeur est la même chez tout le monde), il n'est jamais transmis à Quiet Metrics, et il n'existe que pour arrêter la mesure : c'est un marqueur de refus, pas un traceur. Le tracker JS écrit en plus la même valeur en `localStorage`, mais un SDK serveur ne lit que le cookie : une seule visite suffit donc pour les deux modes de suivi.
 

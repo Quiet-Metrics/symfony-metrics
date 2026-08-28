@@ -3,7 +3,7 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
-## [Unreleased]
+## [0.2.0] - 2026-08-28
 
 Full pre-publication review pending (the core PHP SDK and the Laravel bridge already went through theirs).
 
@@ -11,6 +11,8 @@ Full pre-publication review pending (the core PHP SDK and the Laravel bridge alr
 - Opt-out marker: a visitor loading any page of the tracked site with `?qm_ignore=1` stops being counted, and `?qm_ignore=0` puts them back into measurement. The marker is a first-party `qm_ignore` cookie of that site (`path=/`, `samesite=lax`, `secure` over https, five years); it holds no identifier, is never transmitted to Quiet Metrics, and exists only to stop measurement. Nothing is sent while it is present.
 
 ### Changed
+- **The opt-out marker no longer depends on `auto_pageview`.** It used to travel in the same listener as the automatic pageview, so `auto_pageview: false` disabled it too: on those applications `?qm_ignore=1` did nothing, while reading the refusal kept working. A visitor could therefore stay excluded if they had opted out elsewhere, but could no longer opt out here. A refusal mechanism does not depend on a measurement option. The marker now lives in its own `OptOutListener`, registered on `kernel.response` whatever `auto_pageview` is set to.
+- Requires `quiet-metrics/php-metrics` `^0.2`: under 0.x, `^0.1` excludes 0.2.
 - The published promise is now "no identification or tracking cookies" rather than "cookie-free". Nothing is stored on the visitor's device in order to measure them; the one exception is the opt-out marker, which they store themselves and which is exempt from consent as an expression of refusal.
 
 ## [0.1.1] - 2026-08-27
