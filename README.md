@@ -4,7 +4,7 @@
 
 > 🇫🇷 [Version française](README.fr.md)
 
-Symfony bundle (6.4 and 7.x) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: cookie-free audience measurement, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
+Symfony bundle (6.4 and 7.x) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: audience measurement with no identification or tracking cookies, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
 
 ## Installation
 
@@ -94,6 +94,19 @@ With `auto_pageview: false`, you keep control over page views:
 $this->quietMetrics->pageview();
 $this->quietMetrics->pageview(['url' => 'https://mysite.com/thank-you']);
 ```
+
+## Opting out of measurement
+
+A visitor can ask to stop being counted, with no account and without writing to anyone: they visit a page of your site with `?qm_ignore=1`, and `?qm_ignore=0` puts them back into measurement.
+
+```
+https://mysite.com/?qm_ignore=1     stop being counted
+https://mysite.com/?qm_ignore=0     be counted again
+```
+
+The marker is a **first-party cookie of your own site**, named `qm_ignore` with the value `1` (`path=/`, `samesite=lax`, `secure` over https, five years). The bundle takes care of it on the current request: it stores or clears the marker, and sends nothing while it is there. Nothing to wire.
+
+It holds no identifier (its value is the same for everyone), it is never transmitted to Quiet Metrics, and it exists only to stop measurement: it is an opt-out marker, not a tracker. The JS tracker additionally writes the same value to `localStorage`, but a server-side SDK only ever reads the cookie: one visit therefore covers both tracking modes.
 
 ## How it works
 
