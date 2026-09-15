@@ -35,7 +35,7 @@ return [
 ```
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.3
+composer require quiet-metrics/symfony-metrics:^0.4
 ```
 
 ## Configuration
@@ -66,7 +66,7 @@ QUIET_METRICS_SECRET_KEY=qm_sec_xxx
 
 ## Usage
 
-Pageviews for successful HTML responses are sent on their own: nothing to do.
+Pageviews for rendered HTML responses, including errors are sent on their own: nothing to do.
 
 For custom events, inject the core SDK client (`QuietMetrics\Client`, wired by the bundle):
 
@@ -119,7 +119,9 @@ Note for cached sites: a measured response now carries a `Set-Cookie` header, wh
 ## How it works
 
 - Sending happens on `kernel.terminate`: the response has already reached the visitor, zero perceived latency. The core SDK client is itself non-blocking (write-and-forget socket, short-timeout cURL fallback, silent failures): analytics never breaks the host site.
-- The listener only counts real pages: `GET` requests, 2xx responses, HTML `Content-Type`, excluding AJAX requests.
+Automatic pageviews are HTML/XHTML documents rendered in response to a `GET`, including 404/500 errors. Redirects, empty responses (204/205), PDFs, JSON and attachments are excluded, along with AJAX, announced prefetches and opted-out visitors.
+
+From version **0.4.0**, `track_404: true` also emits a `404` event with the page path. This option is off by default: each additional event consumes quota. Enable it server-side or through the script’s `data-404` on a given page to avoid duplicate events. Server tracking cannot see pages served by a cache that bypasses PHP.
 - The context is read from the `Request` object (never from superglobals): correct under RoadRunner and FrankenPHP, in tests, and aligned with the host application's trusted proxies.
 - With `secret_key`, every send is HMAC-SHA256 signed (`X-QM-Timestamp` and `X-QM-Signature` headers); the visitor IP and User-Agent carried by the SDK are then trusted on the collection side.
 

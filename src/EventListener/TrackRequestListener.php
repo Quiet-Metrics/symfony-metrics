@@ -23,7 +23,7 @@ use Symfony\Component\HttpKernel\Event\TerminateEvent;
  */
 final class TrackRequestListener
 {
-    public function __construct(private readonly Client $client) {}
+    public function __construct(private readonly Client $client, private readonly bool $track404 = false) {}
 
     public function onKernelTerminate(TerminateEvent $event): void
     {
@@ -36,7 +36,7 @@ final class TrackRequestListener
 
         $lang = trim(explode(',', (string) $request->headers->get('Accept-Language'))[0]);
 
-        $this->client->pageview([
+        $context = [
             'url' => $request->getUri(),
             'referrer' => $request->headers->get('referer'),
             'ip' => $request->getClientIp(),
@@ -46,7 +46,14 @@ final class TrackRequestListener
             // vient de poser sur la réponse : `c` doit dire l'état au moment du
             // hit, sinon tout hit se déclarerait en visite continue.
             'visit' => self::hasVisit($request),
-        ]);
+        ];
+
+        $this->client->pageview($context);
+
+        if ($response->getStatusCode() === 404 && $this->track404) {
+            // Même état de visite que la page : les deux hits peuvent être traités dans le désordre.
+            $this->client->event('404', ['path' => $request->getPathInfo()], $context);
+        }
     }
 
     /**
@@ -59,10 +66,13 @@ final class TrackRequestListener
      */
     public static function measures(Request $request, Response $response): bool
     {
-        if ($request->getMethod() !== 'GET'
-            || ! $response->isSuccessful()
+        if (! Client::isHtmlPageResponse(
+            $request->getMethod(),
+            $response->getStatusCode(),
+            $response->headers->get('Content-Type'),
+            $response->headers->get('Content-Disposition'),
+        )
             || $request->isXmlHttpRequest()
-            || ! str_contains((string) $response->headers->get('Content-Type', 'text/html'), 'text/html')
         ) {
             return false;
         }

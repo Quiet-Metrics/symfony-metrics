@@ -32,11 +32,12 @@ final class QuietMetricsBundle extends AbstractBundle
                 ->booleanNode('trust_proxy_headers')->defaultFalse()->end()
                 // false → désactive la pageview auto (events manuels uniquement).
                 ->booleanNode('auto_pageview')->defaultTrue()->end()
+                ->booleanNode('track_404')->defaultFalse()->end()
             ->end();
     }
 
     /**
-     * @param array{public_key:string,secret_key:?string,endpoint:?string,trust_proxy_headers:bool,auto_pageview:bool} $config
+     * @param array{public_key:string,secret_key:?string,endpoint:?string,trust_proxy_headers:bool,auto_pageview:bool,track_404:bool} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
@@ -71,7 +72,7 @@ final class QuietMetricsBundle extends AbstractBundle
 
         if ($config['auto_pageview']) {
             $services->set(TrackRequestListener::class)
-                ->args([service(Client::class)])
+                ->args([service(Client::class), $config['track_404']])
                 ->tag('kernel.event_listener', [
                     'event' => 'kernel.terminate',
                     'method' => 'onKernelTerminate',

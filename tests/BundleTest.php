@@ -84,6 +84,9 @@ final class BundleTest extends TestCase
         $tags = $listener->getTag('kernel.event_listener');
         $this->assertSame('kernel.terminate', $tags[0]['event']);
         $this->assertSame('onKernelTerminate', $tags[0]['method']);
+        $this->assertFalse($listener->getArgument(1));
+        $enabled = $this->compile(['public_key' => 'qm_pub_test', 'track_404' => true]);
+        $this->assertTrue($enabled->getDefinition(TrackRequestListener::class)->getArgument(1));
 
         // Le marqueur d'exclusion se pose pendant la phase reponse : sur
         // kernel.terminate la reponse est deja partie chez le visiteur, il y
@@ -200,7 +203,7 @@ final class BundleTest extends TestCase
         $this->assertSame([], self::$server->requests(1, 400));
     }
 
-    public function test_le_listener_ignore_json_erreurs_et_non_get(): void
+    public function test_le_listener_ignore_json_redirections_et_non_get(): void
     {
         $listener = new TrackRequestListener(new Client('qm_pub_test', null, [
             'endpoint' => self::$server->endpoint(),
@@ -210,7 +213,7 @@ final class BundleTest extends TestCase
         $cases = [
             [Request::create('https://monsite.fr/api', 'GET'), new Response('{}', 200, ['Content-Type' => 'application/json'])],
             [Request::create('https://monsite.fr/form', 'POST'), new Response('ok', 200, ['Content-Type' => 'text/html'])],
-            [Request::create('https://monsite.fr/oups', 'GET'), new Response('non', 500, ['Content-Type' => 'text/html'])],
+            [Request::create('https://monsite.fr/oups', 'GET'), new Response('', 302, ['Content-Type' => 'text/html'])],
         ];
 
         foreach ($cases as [$request, $response]) {
@@ -218,6 +221,29 @@ final class BundleTest extends TestCase
         }
 
         $this->assertSame([], self::$server->requests(1, 400));
+    }
+
+    public function test_les_pages_html_en_erreur_comptent_et_le_404_est_opt_in(): void
+    {
+        foreach ([false, true] as $enabled) {
+            self::$server->reset();
+            $listener = new TrackRequestListener(new Client('qm_pub_test', null, [
+                'endpoint' => self::$server->endpoint(), 'async' => false,
+            ]), $enabled);
+            $request = Request::create('https://monsite.fr/manquante');
+            $response = new Response('erreur', 404, ['Content-Type' => 'text/html']);
+            $this->visite($request, $response);
+            $this->assertCount(1, $response->headers->getCookies());
+            $listener->onKernelTerminate(new TerminateEvent($this->stubKernel(), $request, $response));
+            $payloads = array_map(fn ($r) => json_decode($r['body'], true), self::$server->requests($enabled ? 2 : 1));
+            $this->assertCount($enabled ? 2 : 1, $payloads);
+            $this->assertSame('pageview', $payloads[0]['t']);
+            if ($enabled) {
+                $this->assertSame('404', $payloads[1]['n']);
+                $this->assertSame('/manquante', $payloads[1]['p']['path']);
+                $this->assertSame($payloads[0]['c'] ?? null, $payloads[1]['c'] ?? null);
+            }
+        }
     }
 
     private function stubKernel(): HttpKernelInterface
@@ -466,7 +492,7 @@ final class BundleTest extends TestCase
         $cases = [
             [Request::create('https://monsite.fr/api'), new Response('{}', 200, ['Content-Type' => 'application/json'])],
             [Request::create('https://monsite.fr/form', 'POST'), new Response('ok', 200, ['Content-Type' => 'text/html'])],
-            [Request::create('https://monsite.fr/oups'), new Response('non', 500, ['Content-Type' => 'text/html'])],
+            [Request::create('https://monsite.fr/oups'), new Response('', 302, ['Content-Type' => 'text/html'])],
             [
                 Request::create('https://monsite.fr/tarifs', 'GET', server: ['HTTP_SEC_PURPOSE' => 'prefetch;prerender']),
                 new Response('ok', 200, ['Content-Type' => 'text/html']),

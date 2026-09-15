@@ -3,6 +3,15 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
+## [0.4.0] - 2026-09-15
+
+### Changed
+- Automatic pageviews now include rendered HTML/XHTML 4xx/5xx error pages, matching the JavaScript tracker. Redirects, 204/205 responses, non-HTML content and attachments are excluded, along with AJAX, prefetch and opt-out requests.
+- Requires `quiet-metrics/php-metrics` `^0.4` for the shared response policy. HTML error pages may increase pageview counts after upgrading; historical data is unchanged.
+
+### Added
+- Opt-in `track_404: true`: sends a `404` event with the path alongside the error pageview. Disabled by default; enabling it consumes an additional quota event per 404. Use either this option or JavaScript `data-404` for a given page, not both.
+
 ## [0.3.0] - 2026-08-28
 
 ### Added
