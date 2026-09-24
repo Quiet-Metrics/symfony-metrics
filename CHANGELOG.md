@@ -3,6 +3,14 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
+## [0.5.0] - 2026-09-24
+
+### Added
+- Public `QuietMetrics\Tracker` alias of the client service. `TrackRequestListener` depends on it, so redefining `QuietMetrics\Tracker` in `config/services_test.yaml` replaces the client in tests. The previous documentation replaced `QuietMetrics\Client` with a stub, which a `final` class cannot accept.
+
+### Changed
+- Requires `quiet-metrics/php-metrics` `^0.5`: the page address and referrer are minimized before sending (see the core changelog). No figure changes.
+
 ## [0.4.0] - 2026-09-15
 
 ### Documentation
