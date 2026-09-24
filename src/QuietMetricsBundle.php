@@ -8,6 +8,7 @@ use QuietMetrics\Client;
 use QuietMetrics\Symfony\EventListener\OptOutListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
 use QuietMetrics\Symfony\EventListener\VisitListener;
+use QuietMetrics\Tracker;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -56,6 +57,10 @@ final class QuietMetricsBundle extends AbstractBundle
             ])
             ->public();
 
+        // Ce que le code appelant doit typer : un test remplace ce service
+        // (config/services_test.yaml) sans toucher au client, qui est final.
+        $services->alias(Tracker::class, Client::class)->public();
+
         // TOUJOURS enregistré, y compris quand `auto_pageview` vaut false.
         // Le marqueur voyageait dans le listener de mesure, si bien que couper
         // la page vue automatique coupait aussi la possibilité de se retirer,
@@ -72,7 +77,7 @@ final class QuietMetricsBundle extends AbstractBundle
 
         if ($config['auto_pageview']) {
             $services->set(TrackRequestListener::class)
-                ->args([service(Client::class), $config['track_404']])
+                ->args([service(Tracker::class), $config['track_404']])
                 ->tag('kernel.event_listener', [
                     'event' => 'kernel.terminate',
                     'method' => 'onKernelTerminate',

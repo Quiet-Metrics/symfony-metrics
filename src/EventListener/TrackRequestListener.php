@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace QuietMetrics\Symfony\EventListener;
 
 use QuietMetrics\Client;
+use QuietMetrics\Tracker;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\TerminateEvent;
@@ -23,7 +24,11 @@ use Symfony\Component\HttpKernel\Event\TerminateEvent;
  */
 final class TrackRequestListener
 {
-    public function __construct(private readonly Client $client, private readonly bool $track404 = false) {}
+    /**
+     * Dépend de Tracker et non de Client : c'est ce qui rend le client
+     * remplaçable dans le conteneur de test de l'application.
+     */
+    public function __construct(private readonly Tracker $client, private readonly bool $track404 = false) {}
 
     public function onKernelTerminate(TerminateEvent $event): void
     {

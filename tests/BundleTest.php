@@ -10,6 +10,7 @@ use QuietMetrics\Symfony\EventListener\TrackRequestListener;
 use QuietMetrics\Symfony\EventListener\VisitListener;
 use QuietMetrics\Symfony\QuietMetricsBundle;
 use QuietMetrics\Tests\CaptureServer;
+use QuietMetrics\Tracker;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Request;
@@ -44,8 +45,13 @@ final class BundleTest extends TestCase
         self::$server->reset();
     }
 
-    /** @param array<string, mixed> $config */
-    private function compile(array $config): ContainerBuilder
+    /**
+     * @param array<string, mixed>  $config
+     * @param array<string, string> $services définitions de l'application, id => classe,
+     *                                        posées avant la compilation comme le ferait
+     *                                        config/services_test.yaml
+     */
+    private function compile(array $config, array $services = []): ContainerBuilder
     {
         // Paramètres kernel minimaux requis par l'extension d'un AbstractBundle.
         $container = new ContainerBuilder(new \Symfony\Component\DependencyInjection\ParameterBag\ParameterBag([
@@ -58,10 +64,34 @@ final class BundleTest extends TestCase
         $extension = (new QuietMetricsBundle())->getContainerExtension();
         $container->registerExtension($extension);
         $container->loadFromExtension($extension->getAlias(), $config);
+        foreach ($services as $id => $class) {
+            $container->register($id, $class);
+        }
         $container->getCompilerPassConfig()->setRemovingPasses([]); // garde les services privés inspectables
         $container->compile();
 
         return $container;
+    }
+
+    /**
+     * Ce que le code de l'application doit typer : un test remplace ce service
+     * (config/services_test.yaml) sans toucher au client, qui est final.
+     */
+    public function test_tracker_est_un_alias_public_du_client(): void
+    {
+        $container = $this->compile(['public_key' => 'qm_pub_test']);
+
+        $this->assertTrue($container->hasAlias(Tracker::class));
+        $this->assertSame(Client::class, (string) $container->getAlias(Tracker::class));
+        $this->assertTrue($container->getAlias(Tracker::class)->isPublic());
+    }
+
+    public function test_un_tracker_redefini_par_l_application_atteint_le_listener(): void
+    {
+        $container = $this->compile(['public_key' => 'qm_pub_test'], [Tracker::class => RecordingTracker::class]);
+
+        $this->assertSame(Tracker::class, (string) $container->getDefinition(TrackRequestListener::class)->getArgument(0));
+        $this->assertSame(RecordingTracker::class, $container->getDefinition(Tracker::class)->getClass());
     }
 
     public function test_l_extension_s_appelle_quiet_metrics_et_cable_le_client(): void
@@ -541,4 +571,12 @@ final class BundleTest extends TestCase
             $response,
         ));
     }
+}
+
+/** Remplaçant d'application, tel qu'un intégrateur l'écrirait pour ses tests. */
+final class RecordingTracker implements Tracker
+{
+    public function pageview(array $overrides = []): void {}
+
+    public function event(string $name, array $props = [], array $overrides = []): void {}
 }
