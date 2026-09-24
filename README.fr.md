@@ -22,21 +22,16 @@ return [
 ];
 ```
 
-### Avant la publication sur Packagist
+## Mettre à jour
 
-`symfony-metrics` n'est pas encore sur Packagist, et son dépôt est privé. Déclarez-le (accès requis) ; le package cœur dont il dépend vient de Packagist :
-
-```json
-{
-    "repositories": [
-        { "type": "vcs", "url": "https://github.com/Quiet-Metrics/symfony-metrics" }
-    ]
-}
-```
+Chaque version mineure 0.x du bundle exige la version mineure correspondante du SDK cœur `quiet-metrics/php-metrics` : montez les deux ensemble, et eux seuls.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.4
+composer require quiet-metrics/symfony-metrics:^0.4 --no-update
+composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
+
+Un simple `composer require` échoue, car le SDK cœur est verrouillé dans `composer.lock`. Le message d'erreur de Composer propose alors `-W`, qui met à jour toutes les dépendances du projet ; `-w` monterait aussi des composants Symfony. Lisez le [CHANGELOG](CHANGELOG.md) avant de monter : il signale les changements dans ce qui est compté.
 
 ## Configuration
 

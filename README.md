@@ -22,21 +22,16 @@ return [
 ];
 ```
 
-### Before the Packagist release
+## Upgrading
 
-`symfony-metrics` is not on Packagist yet, and its repository is private. Declare it (access required); the core package it depends on comes from Packagist:
-
-```json
-{
-    "repositories": [
-        { "type": "vcs", "url": "https://github.com/Quiet-Metrics/symfony-metrics" }
-    ]
-}
-```
+Each 0.x minor version of the bundle requires the matching minor version of the core SDK `quiet-metrics/php-metrics`: upgrade both together, and only those two.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.4
+composer require quiet-metrics/symfony-metrics:^0.4 --no-update
+composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
+
+A plain `composer require` fails, because the core SDK is locked in `composer.lock`. Composer's error message then suggests `-W`, which updates every dependency of the project; `-w` would also upgrade Symfony components. Read the [CHANGELOG](CHANGELOG.md) before upgrading: it flags changes in what gets counted.
 
 ## Configuration
 
