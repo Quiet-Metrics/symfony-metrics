@@ -27,7 +27,7 @@ return [
 Each 0.x minor version of the bundle requires the matching minor version of the core SDK `quiet-metrics/php-metrics`: upgrade both together, and only those two.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.4 --no-update
+composer require quiet-metrics/symfony-metrics:^0.5 --no-update
 composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
 
@@ -63,15 +63,15 @@ QUIET_METRICS_SECRET_KEY=qm_sec_xxx
 
 Pageviews for rendered HTML responses, including errors are sent on their own: nothing to do.
 
-For custom events, inject the core SDK client (`QuietMetrics\Client`, wired by the bundle):
+For custom events, inject `QuietMetrics\Tracker`, the interface implemented by the core SDK client the bundle wires (`QuietMetrics\Client` before version 0.5.0):
 
 ```php
-use QuietMetrics\Client;
+use QuietMetrics\Tracker;
 use Symfony\Component\HttpFoundation\Response;
 
 final class CheckoutController
 {
-    public function __construct(private readonly Client $quietMetrics) {}
+    public function __construct(private readonly Tracker $quietMetrics) {}
 
     public function confirm(): Response
     {
@@ -88,6 +88,17 @@ With `auto_pageview: false`, you keep control over page views:
 // current request, overridable key by key:
 $this->quietMetrics->pageview();
 $this->quietMetrics->pageview(['url' => 'https://mysite.com/thank-you']);
+```
+
+### In your tests
+
+Replace the `QuietMetrics\Tracker` service with your own implementation to verify your events without any network. The client is `final`: you do not extend it, you replace the interface it implements.
+
+```yaml
+# config/services_test.yaml
+services:
+    QuietMetrics\Tracker:
+        class: App\Tests\Double\RecordingTracker
 ```
 
 ## Opting out of measurement
@@ -114,11 +125,13 @@ Note for cached sites: a measured response now carries a `Set-Cookie` header, wh
 ## How it works
 
 - Sending happens on `kernel.terminate`: the response has already reached the visitor, zero perceived latency. The core SDK client is itself non-blocking (write-and-forget socket, short-timeout cURL fallback, silent failures): analytics never breaks the host site.
+- The context is read from the `Request` object (never from superglobals): correct under RoadRunner and FrankenPHP, in tests, and aligned with the host application's trusted proxies.
+- With `secret_key`, every send is HMAC-SHA256 signed (`X-QM-Timestamp` and `X-QM-Signature` headers); the visitor IP and User-Agent carried by the SDK are then trusted on the collection side.
+- Only what the platform reads is sent: the page address reduced to its origin, its path and the `utm_source`, `utm_medium`, `utm_campaign` and `ref` parameters; the referrer reduced to its origin.
+
 Automatic pageviews are HTML/XHTML documents rendered in response to a `GET`, including 404/500 errors. Redirects, empty responses (204/205), PDFs, JSON and attachments are excluded, along with AJAX, announced prefetches and opted-out visitors.
 
 From version **0.4.0**, `track_404: true` also emits a `404` event with the page path. This option is off by default: each additional event consumes quota. Enable it server-side or through the script’s `data-404` on a given page to avoid duplicate events. Server tracking cannot see pages served by a cache that bypasses PHP.
-- The context is read from the `Request` object (never from superglobals): correct under RoadRunner and FrankenPHP, in tests, and aligned with the host application's trusted proxies.
-- With `secret_key`, every send is HMAC-SHA256 signed (`X-QM-Timestamp` and `X-QM-Signature` headers); the visitor IP and User-Agent carried by the SDK are then trusted on the collection side.
 
 ## License
 
