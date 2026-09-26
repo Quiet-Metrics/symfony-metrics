@@ -27,7 +27,7 @@ return [
 Chaque version mineure 0.x du bundle exige la version mineure correspondante du SDK cœur `quiet-metrics/php-metrics` : montez les deux ensemble, et eux seuls.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.5 --no-update
+composer require quiet-metrics/symfony-metrics:^0.6 --no-update
 composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
 
@@ -46,6 +46,7 @@ quiet_metrics:
     # endpoint: 'https://quietmetrics.dev/api/v1/collect'  # défaut : endpoint SaaS Quiet Metrics du SDK cœur
     # trust_proxy_headers: true   # application derrière un reverse proxy (X-Forwarded-For / X-Forwarded-Proto)
     # auto_pageview: false        # désactive la pageview automatique (événements manuels uniquement)
+    # seo_crawl: '%env(bool:QUIET_METRICS_SEO_CRAWL)%'   # preuve de propriété du crawl SEO (voir plus bas)
 ```
 
 ```bash
@@ -121,6 +122,28 @@ Quand l'empreinte visiteur change en cours de visite (4G puis wifi), la même pe
 Sa valeur est constante, la même chez tout le monde : elle n'identifie personne, elle dit seulement qu'une visite est déjà en cours sur ce navigateur. Il n'est jamais écrit chez quelqu'un qui a posé le marqueur d'exclusion, ni quand rien n'est mesuré. Un `VisitListener` dédié l'écrit sur `kernel.response`, sur les requêtes dont `TrackRequestListener` envoie la page vue sur `kernel.terminate`. À la différence d'`OptOutListener`, il n'est enregistré que si `auto_pageview` est actif : un refus ne dépend pas d'une option de mesure, une continuité de mesure, si.
 
 À savoir si votre site est mis en cache : une réponse mesurée porte désormais un en-tête `Set-Cookie`, que certains reverse proxys et CDN prennent comme une raison de ne pas stocker la réponse.
+
+## Crawl SEO
+
+L'onglet SEO de Quiet Metrics n'explore qu'un site qui prouve appartenir au compte qui l'a déclaré. Avec la clé secrète configurée, activez l'option et le bundle sert cette preuve automatiquement sur `/.well-known/quietmetrics.json` :
+
+```yaml
+# config/packages/quiet_metrics.yaml
+quiet_metrics:
+    # ...
+    seo_crawl: '%env(bool:QUIET_METRICS_SEO_CRAWL)%'
+```
+
+```bash
+# .env (défaut versionné, éteint)
+QUIET_METRICS_SEO_CRAWL=false
+# .env.local (ou l'environnement du serveur)
+QUIET_METRICS_SEO_CRAWL=true
+```
+
+Déclarez le défaut dans `.env` : `%env()%` échoue à l'exécution sur une variable absente. Le document vaut `{"site_verification":["<jeton>"]}`, où le jeton est un HMAC-SHA256 calculé avec votre clé **secrète** (jamais la clé elle-même ; la clé publique ne conviendrait pas, puisqu'elle se lit dans le HTML de vos pages).
+
+`SiteVerificationListener` répond sur `kernel.request`, avant le routeur, aux seuls `GET` et `HEAD` sur ce chemin exact et à la requête principale uniquement, avec `Content-Type: application/json` et `Cache-Control: no-store` : aucune route à déclarer. Éteint par défaut : sans `seo_crawl`, ou sans `secret_key`, il laisse passer toutes les requêtes sans y toucher, le chemin appartient à votre application (son 404, ou sa propre route), et aucun crawl n'a lieu.
 
 ## Comment ça marche
 

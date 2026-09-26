@@ -6,6 +6,7 @@ namespace QuietMetrics\Symfony;
 
 use QuietMetrics\Client;
 use QuietMetrics\Symfony\EventListener\OptOutListener;
+use QuietMetrics\Symfony\EventListener\SiteVerificationListener;
 use QuietMetrics\Symfony\EventListener\TrackRequestListener;
 use QuietMetrics\Symfony\EventListener\VisitListener;
 use QuietMetrics\Tracker;
@@ -34,17 +35,27 @@ final class QuietMetricsBundle extends AbstractBundle
                 // false → désactive la pageview auto (events manuels uniquement).
                 ->booleanNode('auto_pageview')->defaultTrue()->end()
                 ->booleanNode('track_404')->defaultFalse()->end()
+                // Crawl SEO : sert la preuve de propriété du site sur
+                // /.well-known/quietmetrics.json (exige secret_key). Éteint
+                // par défaut : la plateforme n'explore alors pas le site.
+                // Typiquement '%env(bool:QUIET_METRICS_SEO_CRAWL)%'.
+                ->booleanNode('seo_crawl')->defaultFalse()->end()
             ->end();
     }
 
     /**
-     * @param array{public_key:string,secret_key:?string,endpoint:?string,trust_proxy_headers:bool,auto_pageview:bool,track_404:bool} $config
+     * @param array{public_key:string,secret_key:?string,endpoint:?string,trust_proxy_headers:bool,auto_pageview:bool,track_404:bool,seo_crawl:bool|string} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $services = $container->services();
 
-        $options = ['trust_proxy_headers' => $config['trust_proxy_headers']];
+        // `seo_crawl` peut être un paramètre d'environnement encore non
+        // résolu à la compilation : il est passé tel quel, jamais testé ici.
+        $options = [
+            'trust_proxy_headers' => $config['trust_proxy_headers'],
+            'seo_crawl' => $config['seo_crawl'],
+        ];
         if ($config['endpoint'] !== null) {
             $options['endpoint'] = $config['endpoint'];
         }
@@ -73,6 +84,23 @@ final class QuietMetricsBundle extends AbstractBundle
             ->tag('kernel.event_listener', [
                 'event' => 'kernel.response',
                 'method' => 'onKernelResponse',
+            ]);
+
+        // La preuve de propriété exigée par le crawl SEO. Enregistrée quelle
+        // que soit la configuration, parce que `seo_crawl` peut n'être connu
+        // qu'à l'exécution (%env()%) : c'est le client qui décide, et sans
+        // document le listener ne touche à rien. Coût par requête : une
+        // comparaison de chemin.
+        //
+        // Priorité 200 : après ValidateRequestListener (256), avant la
+        // session (128), le routeur (32) et le pare-feu (8). La réponse part
+        // sans route à déclarer, sans session ni authentification.
+        $services->set(SiteVerificationListener::class)
+            ->args([service(Client::class)])
+            ->tag('kernel.event_listener', [
+                'event' => 'kernel.request',
+                'method' => 'onKernelRequest',
+                'priority' => 200,
             ]);
 
         if ($config['auto_pageview']) {

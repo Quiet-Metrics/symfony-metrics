@@ -3,6 +3,15 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
+## [0.6.0] - 2026-09-28
+
+### Added
+- **SEO crawl.** New `seo_crawl` boolean option, `false` by default, typically `'%env(bool:QUIET_METRICS_SEO_CRAWL)%'`. When it is `true` and `secret_key` is set, the bundle serves the site ownership proof the Quiet Metrics SEO tab requires before crawling, at `/.well-known/quietmetrics.json` (`GET` and `HEAD`, `application/json`, `Cache-Control: no-store`). Otherwise every request goes through untouched.
+- `SiteVerificationListener` on `kernel.request`, priority 200 (before the session, the router and the firewall), main request only. It is registered whatever the configuration, because an `%env()%` value is only known at runtime: the client decides per request.
+
+### Changed
+- Requires `quiet-metrics/php-metrics` `^0.6`.
+
 ## [0.5.0] - 2026-09-24
 
 ### Added

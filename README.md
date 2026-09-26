@@ -27,7 +27,7 @@ return [
 Each 0.x minor version of the bundle requires the matching minor version of the core SDK `quiet-metrics/php-metrics`: upgrade both together, and only those two.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.5 --no-update
+composer require quiet-metrics/symfony-metrics:^0.6 --no-update
 composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
 
@@ -46,6 +46,7 @@ quiet_metrics:
     # endpoint: 'https://quietmetrics.dev/api/v1/collect'  # default: core SDK's Quiet Metrics SaaS endpoint
     # trust_proxy_headers: true   # application behind a reverse proxy (X-Forwarded-For / X-Forwarded-Proto)
     # auto_pageview: false        # disables the automatic pageview (manual events only)
+    # seo_crawl: '%env(bool:QUIET_METRICS_SEO_CRAWL)%'   # SEO crawl ownership proof (see below)
 ```
 
 ```bash
@@ -121,6 +122,28 @@ When the visitor fingerprint changes mid-visit (4G, then wifi), the same person 
 Its value is a constant, the same for everyone, so it identifies nobody: it only says that a visit is already under way in this browser. It is never written to someone who has set the opt-out marker, and never written when nothing is measured. A dedicated `VisitListener` writes it on `kernel.response`, on the very requests whose pageview `TrackRequestListener` sends on `kernel.terminate`. Unlike `OptOutListener`, it is registered only when `auto_pageview` is on: a refusal does not depend on a measurement option, but a measurement cookie does.
 
 Note for cached sites: a measured response now carries a `Set-Cookie` header, which some reverse proxies and CDNs treat as a reason not to store the response.
+
+## SEO crawl
+
+The SEO tab of Quiet Metrics only crawls a site that proves it belongs to the account that declared it. With the secret key configured, turn the option on and the bundle serves that proof automatically at `/.well-known/quietmetrics.json`:
+
+```yaml
+# config/packages/quiet_metrics.yaml
+quiet_metrics:
+    # ...
+    seo_crawl: '%env(bool:QUIET_METRICS_SEO_CRAWL)%'
+```
+
+```bash
+# .env (committed default, off)
+QUIET_METRICS_SEO_CRAWL=false
+# .env.local (or the server environment)
+QUIET_METRICS_SEO_CRAWL=true
+```
+
+Declare the default in `.env`: `%env()%` fails at runtime on an undefined variable. The document is `{"site_verification":["<token>"]}`, where the token is an HMAC-SHA256 computed with your **secret** key (never the key itself; the public key would not do, since it can be read in your pages' HTML).
+
+`SiteVerificationListener` answers on `kernel.request`, before the router, for `GET` and `HEAD` on that exact path only, main request only, with `Content-Type: application/json` and `Cache-Control: no-store`: no route to declare. Off by default: without `seo_crawl`, or without `secret_key`, it lets every request through untouched, the path belongs to your application (its 404, or its own route), and no crawl happens.
 
 ## How it works
 
