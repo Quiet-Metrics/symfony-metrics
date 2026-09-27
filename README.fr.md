@@ -158,4 +158,4 @@ Les pages vues automatiques sont les documents HTML/XHTML affichés en réponse 
 
 ## Licence
 
-MIT. Un produit [La Boîte à Code](https://laboiteacode.fr) pour [Quiet Metrics](https://quietmetrics.dev).
+MIT. Un produit [QuietSystems](https://quietsystems.dev) pour [Quiet Metrics](https://quietmetrics.dev).

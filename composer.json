@@ -1,6 +1,6 @@
 {
     "name": "quiet-metrics/symfony-metrics",
-    "description": "Bundle Symfony du SDK Quiet Metrics (La Boîte à Code) : pageviews serveur automatiques via kernel.terminate et configuration sémantique.",
+    "description": "Bundle Symfony du SDK Quiet Metrics (QuietSystems) : pageviews serveur automatiques via kernel.terminate et configuration sémantique.",
     "type": "symfony-bundle",
     "license": "MIT",
     "homepage": "https://quietmetrics.dev",

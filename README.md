@@ -158,4 +158,4 @@ From version **0.4.0**, `track_404: true` also emits a `404` event with the page
 
 ## License
 
-MIT. A [La Boîte à Code](https://laboiteacode.fr) product for [Quiet Metrics](https://quietmetrics.dev).
+MIT. A [QuietSystems](https://quietsystems.dev) product for [Quiet Metrics](https://quietmetrics.dev).
