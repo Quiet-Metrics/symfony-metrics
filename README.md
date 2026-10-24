@@ -4,7 +4,7 @@
 
 > 🇫🇷 [Version française](README.fr.md)
 
-Symfony bundle (6.4 and 7.x) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: audience measurement with no identification or tracking cookies, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
+Symfony bundle (6.4 and 7.x, PHP >= 8.3) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: audience measurement with no identification or tracking cookies, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
 
 ## Installation
 

@@ -4,7 +4,7 @@
 
 > 🇬🇧 [English version](README.md)
 
-Bundle Symfony (6.4 et 7.x) du SDK PHP [Quiet Metrics](https://quietmetrics.dev) : mesure d'audience sans cookie d'identification ni de traçabilité, 100 % côté serveur, imblocable par les adblockers. Les pages vues partent automatiquement en `kernel.terminate`, sans JavaScript et sans jamais ralentir le site.
+Bundle Symfony (6.4 et 7.x, PHP >= 8.3) du SDK PHP [Quiet Metrics](https://quietmetrics.dev) : mesure d'audience sans cookie d'identification ni de traçabilité, 100 % côté serveur, imblocable par les adblockers. Les pages vues partent automatiquement en `kernel.terminate`, sans JavaScript et sans jamais ralentir le site.
 
 ## Installation
 
