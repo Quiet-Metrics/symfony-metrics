@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [0.7.0] - Unreleased
 
 ### Changed
-- **Breaking: PHP 8.3 minimum** (versions below are no longer security-supported: PHP 8.1 since 31 December 2025, PHP 8.2 from 31 December 2026). Symfony 6.4 and 7.x are still supported. On an older PHP, Composer keeps resolving 0.6.x.
+- **Breaking: PHP 8.3 minimum** (versions below are no longer security-supported: PHP 8.1 since 31 December 2025, PHP 8.2 from 31 December 2026). Symfony 7.0 to 7.3 are dropped as well (out of support): Symfony 6.4 and 7.4 LTS only (`^6.4 || ^7.4`). On an older PHP, Composer keeps resolving 0.6.x.
 - Requires `quiet-metrics/php-metrics` `^0.7`.
 
 ## [0.6.0] - 2026-09-28

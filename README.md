@@ -4,7 +4,7 @@
 
 > 🇫🇷 [Version française](README.fr.md)
 
-Symfony bundle (6.4 and 7.x, PHP >= 8.3) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: audience measurement with no identification or tracking cookies, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
+Symfony bundle (6.4 and 7.4, PHP >= 8.3) for the [Quiet Metrics](https://quietmetrics.dev) PHP SDK: audience measurement with no identification or tracking cookies, 100% server-side, unblockable by ad blockers. Page views are sent automatically on `kernel.terminate`, without JavaScript and without ever slowing the site down.
 
 ## Installation
 
@@ -27,7 +27,7 @@ return [
 Each 0.x minor version of the bundle requires the matching minor version of the core SDK `quiet-metrics/php-metrics`: upgrade both together, and only those two.
 
 ```bash
-composer require quiet-metrics/symfony-metrics:^0.6 --no-update
+composer require quiet-metrics/symfony-metrics:^0.7 --no-update
 composer update quiet-metrics/symfony-metrics quiet-metrics/php-metrics
 ```
 
