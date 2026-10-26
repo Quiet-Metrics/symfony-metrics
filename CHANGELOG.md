@@ -3,7 +3,7 @@
 All notable changes to `quiet-metrics/symfony-metrics` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org).
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-10-26
 
 ### Changed
 - **Breaking: PHP 8.3 minimum** (versions below are no longer security-supported: PHP 8.1 since 31 December 2025, PHP 8.2 from 31 December 2026). Symfony 7.0 to 7.3 are dropped as well (out of support): Symfony 6.4 and 7.4 LTS only (`^6.4 || ^7.4`). On an older PHP, Composer keeps resolving 0.6.x.
